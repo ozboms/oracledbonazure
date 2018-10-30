@@ -1,0 +1,306 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "adminUsername": {
+        "type": "string",
+        "metadata": {
+          "description": "User name for the Virtual Machine."
+        }
+      },
+      "adminPassword": {
+        "type": "securestring",
+        "metadata": {
+          "description": "Password for the Virtual Machine."
+        }
+      },
+      "vmName": {
+        "type": "string",
+        "metadata": {
+          "description": "Name for the Virtual Machine."
+        }
+      },
+      "location": {
+        "type": "string",
+        "defaultValue": "[resourceGroup().location]", //TODO: Multi-region deployments?
+        "metadata": {
+          "description": "Location for all resources."
+        }
+      },
+      "createPublicIP":{
+        "type": "bool",
+        "defaultValue": true,
+        "metadata": {
+          "description":"Create a Public IP for the VMs? (true/false)"
+        }
+      },
+      "publicIPSKU":{
+        "type": "string",
+        "defaultValue": "Standard",
+        "allowedValues": [
+          "Standard", "Basic"
+        ],
+        "metadata": {
+          "description":"SKU for Public IP for the VMs"
+        }
+      }/*,
+      "osDiskSku":{
+        "type": "string",
+        "defaultValue": "Premium_LRS",
+        "allowedValues": [
+          "Premium_LRS",
+          "Standard_LRS",
+          "StandardSS_LRS"
+        ],
+        "metadata": {
+          "description":"SKU for the OS Disks to be attached"
+        }
+      }*/,
+      "osDiskSizeInGB":{
+        "type": "int",
+        "defaultValue": 1024,
+        "allowedValues": [
+          32, 64, 128, 512, 1024, 2048, 4096
+        ],
+        "metadata": {
+          "description":"Size of the OS Disk(s) to be attached"
+        }
+      },
+      "redoLogsDiskSku":{
+        "type": "string",
+        "defaultValue": "Premium_LRS",
+        "allowedValues": [
+          "Premium_LRS",
+          "Standard_LRS",
+          "StandardSS_LRS"
+        ],
+        "metadata": {
+          "description":"SKU for the Redo Logs Disk(s) to be attached"
+        }
+      },
+      "redoLogsDiskSizeInGB":{
+        "type": "int",
+        "defaultValue": 1024,
+        "allowedValues": [
+          32, 64, 128, 512, 1024, 2048, 4096
+        ],
+        "metadata": {
+          "description":"Size of the Redo Logs Disk(s) to be attached"
+        }
+      },
+      "numberOfRedoLogsDisks":{
+        "type": "int",
+        "defaultValue": 1,
+        "maxValue": 10,
+        "metadata": {
+          "description":"Number of Redo Logs Disks to be attached to the VM"
+        }
+      },
+      "numberOfDataDisks":{
+        "type": "int",
+        "defaultValue": 3,
+        "maxValue": 64,
+        "metadata": {
+          "description":"Number of Data Disks to be attached to the VM"
+        }
+      },
+      "dataDiskSku":{
+        "type": "string",
+        "defaultValue": "Premium_LRS",
+        "allowedValues": [
+          "Premium_LRS",
+          "Standard_LRS",
+          "StandardSS_LRS"
+        ],
+        "metadata": {
+          "description":"SKU for the Data Disks to be attached"
+        }
+      },
+      "dataDiskSizeInGB":{
+        "type": "int",
+        "defaultValue": 1024,
+        "allowedValues": [
+          32, 64, 128, 512, 1024, 2048, 4096
+        ],
+        "metadata": {
+          "description":"Size of the Data Disk(s) to be attached"
+        }
+      },
+      "readHeavyDatabase":{
+        "type": "string",
+        "defaultValue": "no",
+        "allowedValues": [
+          "yes", "no"
+        ],
+        "metadata": {
+          "description":"Is your Data Read-only or Read-intensive? ('ReadOnly' caching will be turned on your data disks)"
+        }
+      }
+    },
+    "variables": {
+      "imagePublisher": "RedHat",
+      "imageOffer": "RHEL",
+      "imageSku": "6.9",
+      "nicName": "[concat(uniquestring(parameters('vmName')), 'nic')]",
+      "addressPrefix": "10.0.0.0/16",
+      "subnetName": "Subnet",
+      "subnetPrefix": "10.0.0.0/24",
+      "publicIPAddressName": "[concat(uniquestring(parameters('vmName')), 'publicip')]",
+      "publicIPAddressType": "Dynamic",
+      "dataDisksCaching":"[if(equals(parameters('readHeavyDatabase'), 'yes'), 'ReadOnly', 'None')]",
+      "vmSize": "Standard_A2",
+      "virtualNetworkName": "[concat(uniquestring(parameters('vmName')), 'vnet')]",
+      "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), variables('subnetName'))]"
+    },
+    "resources": [
+      {
+        "apiVersion": "2017-05-10",
+        "name": "pid-xxx",  //TODO: Need a PID
+        "type": "Microsoft.Resources/deployments",
+        "properties":{
+          "mode":"Incremental",
+          "template":{
+            "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+            "contentVersion":"1.0.0.0",
+            "resources": [] 
+          }
+        },
+        "comments": "This resource helps Microsoft Azure track this deployment and thus provide better support."
+      },
+      {
+        "apiVersion": "2017-10-01",
+        "type": "Microsoft.Network/publicIPAddresses",
+        "name": "[concat(parameters('vmName') , '-publicIP' )]",
+        "location":"[parameters('location')]",
+        "sku":{
+          "name": "Standard" 
+        },
+        "properties":{
+          "publicIPAllocationMethod": "[variables('publicIPAddressType')]" //TODO: Read in a blog around changing this to static if sku is standard. If there are errors, consider changing this. Link to Blog: https://1138blog.wordpress.com/2017/10/27/migrating-your-arm-templates-to-azure-availability-zones/
+        }
+      },
+      {
+        "apiVersion": "2017-10-01",
+        "type": "Microsoft.Network/virtualNetworks",
+        "name": "[variables('virtualNetworkName')]",
+        "location": "[parameters('location')]",
+        "properties": {
+          "addressSpace": {
+            "addressPrefixes": [
+              "[variables('addressPrefix')]"
+            ]
+          },
+          "subnets": [
+            {
+              "name": "[variables('subnetName')]",
+              "properties": {
+                "addressPrefix": "[variables('subnetPrefix')]"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "apiVersion": "2017-10-01",
+        "type": "Microsoft.Network/networkInterfaces",
+        "name": "[variables('nicName')]",
+        "location": "[parameters('location')]",
+        "dependsOn": [
+          "[concat('Microsoft.Network/publicIPAddresses/', variables('publicIPAddressName'))]",
+          "[concat('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]"
+        ],
+        "properties": {
+          "ipConfigurations": [
+            {
+              "name": "ipconfig1",
+              "properties": {
+                "privateIPAllocationMethod": "Dynamic",
+                "publicIPAddress": {
+                  "id": "[resourceId('Microsoft.Network/publicIPAddresses',variables('publicIPAddressName'))]"
+                },
+                "subnet": {
+                  "id": "[variables('subnetRef')]"
+                }
+              }
+            }
+          ]
+        }
+      },
+      { //TODO: Verify whether we should create disks before or after the VM is created. Also, should we put it in an availability zone?
+        "apiVersion":"2018-04-01",
+        "type": "Microsoft.Compute/disks",
+        "name": "[concat('AttachedDisk-',copyIndex())]",
+        "location": "[parameters('location')]",
+        "sku":{
+          "name" : "[parameters('dataDiskSku')]"
+        },
+        "properties":{
+          "osType":"Linux",
+          "creationData":{
+            "createOption":"Empty"
+          },
+          "diskSizeGB":"[parameters('dataDiskSizeInGB')]"
+        },
+        "copy": {
+          "name": "DiskCopy",
+          "count": "[parameters('numberOfDataDisks')]"
+        }
+      },
+      {
+        "apiVersion": "2018-06-01",
+        "type": "Microsoft.Compute/virtualMachines",
+        "name": "[parameters('vmName')]",
+        "location": "[parameters('location')]",
+        "tags": {
+          "Tag1": "ManagedRHELVM"
+        },
+        "dependsOn": [
+          "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]"
+        ],
+        "properties": {
+          "hardwareProfile": {
+            "vmSize": "[variables('vmSize')]"
+          },
+          "osProfile": {
+            "computerName": "[parameters('vmName')]",
+            "adminUsername": "[parameters('adminUsername')]",
+            "adminPassword": "[parameters('adminPassword')]"
+          },
+          "storageProfile": {
+            "imageReference": {
+              "publisher": "[variables('imagePublisher')]",
+              "offer": "[variables('imageOffer')]",
+              "sku": "[variables('imageSku')]",
+              "version": "latest"
+            },
+            "osDisk":{
+              "osType":"Linux",
+              "name":"[concat(parameters('vmName'),'-osdisk')]",
+              "createOption":"FromImage",
+              "caching":"ReadWrite",
+              "diskSizeGB": "[parameters('osDiskSizeInGB')]"
+            },
+            "copy":{
+              "name": "dataDisks",
+              "count":"[parameters('numberOfDataDisks')]",
+              "input":{
+                "lun": "[copyIndex()]",
+                "createOption":"Empty",
+                "managedDisk":{
+                  "id": "[resourceId('Microsoft.Compute/disks', concat('AttachedDisk-',copyIndex()))]"
+                },
+                "caching": "[variables('dataDisksCaching')]"
+              }
+            }
+          },
+          "networkProfile": {
+            "networkInterfaces": [
+              {
+                "id": "[resourceId('Microsoft.Network/networkInterfaces',variables('nicName'))]"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }

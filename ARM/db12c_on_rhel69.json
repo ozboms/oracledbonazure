@@ -247,7 +247,7 @@
         },
         "dependsOn": [
           "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]",
-          "[resourceId('Microsoft.Compute/disks', concat('AttachedDisk', copyIndex(checkDisk)))]"
+          "[resourceId('Microsoft.Compute/disks', concat('AttachedDisk', copyIndex('checkDisk')))]"
         ],
         "copy":{
           "name": "checkDisk",
@@ -280,7 +280,7 @@
               "name": "dataDisks",
               "count": "[parameters('numberOfDataDisks')]",
               "input": {
-                "name": "[concat('AttachedDisk', copyIndex(dataDisks))]",
+                "name": "[concat('AttachedDisk', copyIndex('dataDisks'))]",
                 "lun": "[copyIndex('dataDisks')]",
                 "createOption": "Attach",
                 "managedDisk":{

@@ -155,7 +155,7 @@
       "publicIPAddressName": "[concat(uniquestring(parameters('vmName')), 'publicip')]",
       "publicIPAddressType": "Static",
       "dataDisksCaching":"[if(equals(parameters('readHeavyDatabase'), 'yes'), 'ReadOnly', 'None')]",
-      "vmSize": "Standard_D2_v3",
+      "vmSize": "Standard_D2s_v3",
       "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), variables('subnetName'))]"
     },
     "resources": [

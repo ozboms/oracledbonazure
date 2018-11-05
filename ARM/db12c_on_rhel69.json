@@ -247,7 +247,7 @@
         },
         "dependsOn": [
           "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]",
-          "[resourceId('Microsoft.Compute/disks')]"
+          "['DiskCopy']"
         ],
         "properties": {
           "hardwareProfile": {

@@ -220,7 +220,7 @@
       {
         "apiVersion": "[variables('apiVersionCompute')]",
         "type": "Microsoft.Compute/disks",
-        "name": "[concat('AttachedDisk', copyIndex())]",
+        "name": "[concat('AttachedDisk', copyIndex('DiskCopy'))]",
         "location": "[variables('location')]",
         "sku":{
           "name" : "[parameters('dataDiskSku')]"
@@ -246,7 +246,8 @@
           "Tag1": "ManagedRHELVM"
         },
         "dependsOn": [
-          "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]"
+          "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]",
+          "[resourceId('Microsoft.Compute/disks', concat('AttachedDisk', copyIndex('DiskCopy')))]"
         ],
         "properties": {
           "hardwareProfile": {
@@ -279,7 +280,7 @@
                 "lun": "[copyIndex('dataDisks')]",
                 "createOption": "Attach",
                 "managedDisk":{
-                  "id": "[resourceId('Microsoft.Compute/disks', concat('AttachedDisk', copyIndex()))]"
+                  "id": "[resourceId('Microsoft.Compute/disks', concat('AttachedDisk', copyIndex('DiskCopy')))]"
                 },
                 "caching": "[variables('dataDisksCaching')]"
                }

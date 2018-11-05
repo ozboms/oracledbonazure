@@ -275,20 +275,7 @@
               "createOption":"FromImage",
               "caching":"ReadWrite",
               "diskSizeGB": "[parameters('osDiskSizeInGB')]"
-            },
-            "copy": [{
-              "name": "dataDisks",
-              "count": "[parameters('numberOfDataDisks')]",
-              "input": {
-                "name": "[concat('AttachedDisk', copyIndex('dataDisks'))]",
-                "lun": "[copyIndex('dataDisks')]",
-                "createOption": "Attach",
-                "managedDisk":{
-                  "id": "[resourceId('Microsoft.Compute/disks', concat('AttachedDisk', copyIndex()))]"
-                },
-                "caching": "[variables('dataDisksCaching')]"
-               }
-            }]
+            }
           },   
           "networkProfile": {
             "networkInterfaces": [

@@ -162,7 +162,7 @@
       {
         "apiVersion": "[variables('apiVersionNetwork')]",
         "type": "Microsoft.Network/publicIPAddresses",
-        "name": "[variables(publicIPAddressName)]",
+        "name": "[variables('publicIPAddressName')]",
         "location":"[variables('location')]",
         "sku":{
           "name": "Standard" 

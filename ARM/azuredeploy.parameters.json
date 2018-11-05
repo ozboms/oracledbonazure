@@ -1,21 +1,24 @@
-{ //TODO: Add the parameters and test the template
+{
     "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
         "adminUsername": {
-            "value": "GEN-UNIQUE"
+            "value": "changeme"
         },
         "adminPassword": {
-            "value": "GEN-PASSWORD"
+            "value": "changeme"
         },
-        "dnsLabelPrefix": {
-            "value": "GEN-UNIQUE"
+        "vmName": {
+            "value": "vmtestoracle12"
         },
-        "vmSize": {
-            "value": "Standard_D3"
+        "virtualNetworkNewOrExisting": {
+            "value": "new"
         },
-        "sizeOfEachDataDiskInGB": {
-            "value": "100"
+        "virtualNetworkResourceGroupName": {
+            "value": "changeme"
+        },
+        "virtualNetworkName": {
+            "value": "changeme"
         }
     }
 }

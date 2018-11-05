@@ -20,16 +20,31 @@
           "description": "Name for the Virtual Machine."
         }
       },
-      "location": {
+      "virtualNetworkNewOrExisting": {
         "type": "string",
-        "defaultValue": "[resourceGroup().location]", //TODO: Multi-region deployments?
+        "defaultValue": "new",
+        "allowedValues": ["new", "existing"],
         "metadata": {
-          "description": "Location for all resources."
+        "description": "Determines whether or not a new virtual network should be provisioned"
+        }
+      },
+      "virtualNetworkResourceGroupName": {
+        "type": "string",
+        "defaultValue": "[resourceGroup().name]",
+        "metadata": {
+        "description": "Name of the resource group for the existing virtual network"
+        }
+      },
+      "virtualNetworkName": {
+        "type": "string",
+        "defaultValue": "openshiftvnet",
+        "metadata": {
+        "description": "Name of the virtual network"
         }
       },
       "createPublicIP":{
         "type": "bool",
-        "defaultValue": true,
+        "defaultValue": false,
         "metadata": {
           "description":"Create a Public IP for the VMs? (true/false)"
         }
@@ -43,19 +58,7 @@
         "metadata": {
           "description":"SKU for Public IP for the VMs"
         }
-      }/*,
-      "osDiskSku":{
-        "type": "string",
-        "defaultValue": "Premium_LRS",
-        "allowedValues": [
-          "Premium_LRS",
-          "Standard_LRS",
-          "StandardSS_LRS"
-        ],
-        "metadata": {
-          "description":"SKU for the OS Disks to be attached"
-        }
-      }*/,
+      },
       "osDiskSizeInGB":{
         "type": "int",
         "defaultValue": 1024,
@@ -138,6 +141,10 @@
       }
     },
     "variables": {
+      "location": "[resourceGroup().location]",
+      "resourceGroupName": "[resourceGroup().name]",
+      "apiVersionNetwork": "2017-10-01",
+      "apiVersionCompute": "2017-03-30",
       "imagePublisher": "RedHat",
       "imageOffer": "RHEL",
       "imageSku": "6.9",
@@ -149,62 +156,46 @@
       "publicIPAddressType": "Dynamic",
       "dataDisksCaching":"[if(equals(parameters('readHeavyDatabase'), 'yes'), 'ReadOnly', 'None')]",
       "vmSize": "Standard_A2",
-      "virtualNetworkName": "[concat(uniquestring(parameters('vmName')), 'vnet')]",
       "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), variables('subnetName'))]"
     },
     "resources": [
       {
-        "apiVersion": "2017-05-10",
-        "name": "pid-xxx",  //TODO: Need a PID
-        "type": "Microsoft.Resources/deployments",
-        "properties":{
-          "mode":"Incremental",
-          "template":{
-            "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
-            "contentVersion":"1.0.0.0",
-            "resources": [] 
-          }
-        },
-        "comments": "This resource helps Microsoft Azure track this deployment and thus provide better support."
-      },
-      {
-        "apiVersion": "2017-10-01",
+        "apiVersion": "[variables('apiVersionNetwork')]",
         "type": "Microsoft.Network/publicIPAddresses",
         "name": "[concat(parameters('vmName') , '-publicIP' )]",
-        "location":"[parameters('location')]",
+        "location":"[variables('location')]",
         "sku":{
           "name": "Standard" 
         },
         "properties":{
-          "publicIPAllocationMethod": "[variables('publicIPAddressType')]" //TODO: Read in a blog around changing this to static if sku is standard. If there are errors, consider changing this. Link to Blog: https://1138blog.wordpress.com/2017/10/27/migrating-your-arm-templates-to-azure-availability-zones/
+          "publicIPAllocationMethod": "[variables('publicIPAddressType')]" 
         }
       },
       {
-        "apiVersion": "2017-10-01",
-        "type": "Microsoft.Network/virtualNetworks",
-        "name": "[variables('virtualNetworkName')]",
-        "location": "[parameters('location')]",
+        "apiVersion": "[variables('apiVersionNetwork')]",
+        "condition": "[equals(parameters('virtualNetworkNewOrExisting'), 'new')]",
+			  "type": "Microsoft.Network/virtualNetworks",
+			  "name": "[parameters('virtualNetworkName')]",
+        "location": "[variables('location')]",
         "properties": {
           "addressSpace": {
             "addressPrefixes": [
               "[variables('addressPrefix')]"
             ]
           },
-          "subnets": [
-            {
+          "subnets": [{
               "name": "[variables('subnetName')]",
               "properties": {
                 "addressPrefix": "[variables('subnetPrefix')]"
               }
-            }
-          ]
+            }]
         }
       },
       {
-        "apiVersion": "2017-10-01",
+        "apiVersion": "[variables('apiVersionNetwork')]",
         "type": "Microsoft.Network/networkInterfaces",
         "name": "[variables('nicName')]",
-        "location": "[parameters('location')]",
+        "location": "[variables('location')]",
         "dependsOn": [
           "[concat('Microsoft.Network/publicIPAddresses/', variables('publicIPAddressName'))]",
           "[concat('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]"
@@ -226,13 +217,17 @@
           ]
         }
       },
-      { //TODO: Verify whether we should create disks before or after the VM is created. Also, should we put it in an availability zone?
-        "apiVersion":"2018-04-01",
+      {
+        "apiVersion": "[variables('apiVersionCompute')]",
         "type": "Microsoft.Compute/disks",
-        "name": "[concat('AttachedDisk-',copyIndex())]",
-        "location": "[parameters('location')]",
+        "name": "[concat('AttachedDisk-', copyIndex())]",
+        "location": "[variables('location')]",
         "sku":{
           "name" : "[parameters('dataDiskSku')]"
+        },     
+        "copy": {
+          "name": "DiskCopy",
+          "count": "[parameters('numberOfDataDisks')]"
         },
         "properties":{
           "osType":"Linux",
@@ -240,23 +235,24 @@
             "createOption":"Empty"
           },
           "diskSizeGB":"[parameters('dataDiskSizeInGB')]"
-        },
-        "copy": {
-          "name": "DiskCopy",
-          "count": "[parameters('numberOfDataDisks')]"
         }
       },
       {
-        "apiVersion": "2018-06-01",
+        "apiVersion": "[variables('apiVersionCompute')]",
         "type": "Microsoft.Compute/virtualMachines",
         "name": "[parameters('vmName')]",
-        "location": "[parameters('location')]",
+        "location": "[variables('location')]",
         "tags": {
           "Tag1": "ManagedRHELVM"
         },
         "dependsOn": [
-          "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]"
+          "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]",
+          "[resourceId('Microsoft.Compute/disks', concat('AttachedDisk-', copyIndex()))]"
         ],
+        "copy":{
+          "name": "dataDisks",
+          "count":"[parameters('numberOfDataDisks')]"
+        },
         "properties": {
           "hardwareProfile": {
             "vmSize": "[variables('vmSize')]"
@@ -280,19 +276,20 @@
               "caching":"ReadWrite",
               "diskSizeGB": "[parameters('osDiskSizeInGB')]"
             },
-            "copy":{
+            "copy": [{
               "name": "dataDisks",
-              "count":"[parameters('numberOfDataDisks')]",
-              "input":{
-                "lun": "[copyIndex()]",
-                "createOption":"Empty",
+              "count": "[parameters('numberOfDataDisks')]",
+              "input": {
+                "name": "[concat('AttachedDisk-', copyIndex(dataDisks))]",
+                "lun": "[copyIndex('dataDisks')]",
+                "createOption": "Attach",
                 "managedDisk":{
-                  "id": "[resourceId('Microsoft.Compute/disks', concat('AttachedDisk-',copyIndex()))]"
+                  "id": "[resourceId('Microsoft.Compute/disks', concat('AttachedDisk-', copyIndex()))]"
                 },
                 "caching": "[variables('dataDisksCaching')]"
               }
-            }
-          },
+            }]
+          },   
           "networkProfile": {
             "networkInterfaces": [
               {

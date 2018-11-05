@@ -162,7 +162,7 @@
       {
         "apiVersion": "[variables('apiVersionNetwork')]",
         "type": "Microsoft.Network/publicIPAddresses",
-        "name": "[concat(parameters('vmName') , '-publicIP' )]",
+        "name": "[concat(parameters('vmName') , '-publicIP')]",
         "location":"[variables('location')]",
         "sku":{
           "name": "Standard" 
@@ -246,13 +246,8 @@
           "Tag1": "ManagedRHELVM"
         },
         "dependsOn": [
-          "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]",
-          "[resourceId('Microsoft.Compute/disks', concat('AttachedDisk', copyIndex('checkDisk')))]"
+          "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]"
         ],
-        "copy":{
-          "name": "checkDisk",
-          "count":"[parameters('numberOfDataDisks')]"
-        },
         "properties": {
           "hardwareProfile": {
             "vmSize": "[variables('vmSize')]"
@@ -275,7 +270,20 @@
               "createOption":"FromImage",
               "caching":"ReadWrite",
               "diskSizeGB": "[parameters('osDiskSizeInGB')]"
-            }
+            },
+            "copy": [{
+              "name": "dataDisks",
+              "count": "[parameters('numberOfDataDisks')]",
+              "input": {
+                "name": "[concat('AttachedDisk', copyIndex('dataDisks'))]",
+                "lun": "[copyIndex('dataDisks')]",
+                "createOption": "Attach",
+                "managedDisk":{
+                  "id": "[resourceId('Microsoft.Compute/disks', concat('AttachedDisk', copyIndex()))]"
+                },
+                "caching": "[variables('dataDisksCaching')]"
+               }
+            }]
           },   
           "networkProfile": {
             "networkInterfaces": [

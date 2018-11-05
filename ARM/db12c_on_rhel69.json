@@ -247,7 +247,7 @@
         },
         "dependsOn": [
           "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]",
-          "[resourceId('Microsoft.Compute/disks', concat('AttachedDisk', copyIndex('DiskCopy')))]"
+          "[resourceId('Microsoft.Compute/disks')]"
         ],
         "properties": {
           "hardwareProfile": {
@@ -276,11 +276,10 @@
               "name": "dataDisks",
               "count": "[parameters('numberOfDataDisks')]",
               "input": {
-                "name": "[concat('AttachedDisk', copyIndex('dataDisks'))]",
                 "lun": "[copyIndex('dataDisks')]",
                 "createOption": "Attach",
                 "managedDisk":{
-                  "id": "[resourceId('Microsoft.Compute/disks', concat('AttachedDisk', copyIndex('DiskCopy')))]"
+                  "id": "[resourceId('Microsoft.Compute/disks', concat('AttachedDisk', copyIndex('dataDisks')))]"
                 },
                 "caching": "[variables('dataDisksCaching')]"
                }

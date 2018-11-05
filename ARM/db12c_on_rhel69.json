@@ -156,7 +156,7 @@
       "publicIPAddressType": "Dynamic",
       "dataDisksCaching":"[if(equals(parameters('readHeavyDatabase'), 'yes'), 'ReadOnly', 'None')]",
       "vmSize": "Standard_A2",
-      "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), variables('subnetName'))]"
+      "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), variables('subnetName'))]"
     },
     "resources": [
       {
@@ -198,7 +198,7 @@
         "location": "[variables('location')]",
         "dependsOn": [
           "[concat('Microsoft.Network/publicIPAddresses/', variables('publicIPAddressName'))]",
-          "[concat('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]"
+          "[concat('Microsoft.Network/virtualNetworks/', parameters('virtualNetworkName'))]"
         ],
         "properties": {
           "ipConfigurations": [

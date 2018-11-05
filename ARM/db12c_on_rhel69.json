@@ -153,7 +153,7 @@
       "subnetName": "Subnet",
       "subnetPrefix": "10.0.0.0/24",
       "publicIPAddressName": "[concat(uniquestring(parameters('vmName')), 'publicip')]",
-      "publicIPAddressType": "Dynamic",
+      "publicIPAddressType": "Static",
       "dataDisksCaching":"[if(equals(parameters('readHeavyDatabase'), 'yes'), 'ReadOnly', 'None')]",
       "vmSize": "Standard_A2",
       "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), variables('subnetName'))]"

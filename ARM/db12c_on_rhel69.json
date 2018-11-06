@@ -239,6 +239,26 @@
       },
       {
         "apiVersion": "[variables('apiVersionCompute')]",
+        "type": "Microsoft.Compute/disks",
+        "name": "[concat('RedoLog', copyIndex('RedoLogCopy'))]",
+        "location": "[variables('location')]",
+        "sku":{
+          "name" : "[parameters('redoLogsDiskSku')]"
+        },     
+        "copy": {
+          "name": "RedoLogCopy",
+          "count": "[parameters('numberOfRedoLogsDisks')]"
+        },
+        "properties":{
+          "osType":"Linux",
+          "creationData":{
+            "createOption":"Empty"
+          },
+          "diskSizeGB":"[parameters('redoLogsDiskSizeInGB')]"
+        }
+      },
+      {
+        "apiVersion": "[variables('apiVersionCompute')]",
         "type": "Microsoft.Compute/virtualMachines",
         "name": "[parameters('vmName')]",
         "location": "[variables('location')]",
@@ -247,7 +267,8 @@
         },
         "dependsOn": [
           "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]",
-          "['DiskCopy']"
+          "['DiskCopy']",
+          "['RedoLogCopy']"
         ],
         "properties": {
           "hardwareProfile": {
@@ -272,7 +293,8 @@
               "caching":"ReadWrite",
               "diskSizeGB": "[parameters('osDiskSizeInGB')]"
             },
-            "copy": [{
+            "copy": [
+              {
               "name": "dataDisks",
               "count": "[parameters('numberOfDataDisks')]",
               "input": {
@@ -283,7 +305,19 @@
                 },
                 "caching": "[variables('dataDisksCaching')]"
                }
-            }]
+            },
+            {
+              "name": "dataDisks",
+              "count": "[parameters('numberOfRedoLogsDisks')]",
+              "input": {
+                "lun": "[copyIndex('dataDisks')]",
+                "createOption": "Attach",
+                "managedDisk":{
+                  "id": "[resourceId('Microsoft.Compute/disks', concat('RedoLog', copyIndex('dataDisks')))]"
+                }
+               }
+            }
+          ]
           },   
           "networkProfile": {
             "networkInterfaces": [

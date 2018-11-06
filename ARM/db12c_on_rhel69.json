@@ -307,13 +307,13 @@
                }
             },
             {
-              "name": "dataDisks",
+              "name": "dataDisks2",
               "count": "[parameters('numberOfRedoLogsDisks')]",
               "input": {
-                "lun": "[copyIndex('dataDisks')]",
+                "lun": "[copyIndex('dataDisks2')]",
                 "createOption": "Attach",
                 "managedDisk":{
-                  "id": "[resourceId('Microsoft.Compute/disks', concat('RedoLog', copyIndex('dataDisks')))]"
+                  "id": "[resourceId('Microsoft.Compute/disks', concat('RedoLog', copyIndex('dataDisks2')))]"
                 }
                }
             }

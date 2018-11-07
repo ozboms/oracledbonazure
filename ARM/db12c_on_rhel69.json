@@ -156,7 +156,24 @@
       "publicIPAddressType": "Static",
       "dataDisksCaching":"[if(equals(parameters('readHeavyDatabase'), 'yes'), 'ReadOnly', 'None')]",
       "vmSize": "Standard_D2s_v3",
-      "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), variables('subnetName'))]"
+      "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), variables('subnetName'))]",
+      "copy": [
+        {
+          "name": "datadiskarray",
+          "count": "[parameters('numberOfDataDisks')]",
+          "input": {
+            "namesofDisks": "[concat('AttachedDisk', copyIndex('datadiskarray'))]"
+          }
+        },
+        {
+          "name": "redologarray",
+          "count": "[parameters('numberOfRedoLogsDisks')]",
+          "input": {
+            "namesofDisks": "[concat('RedoLog', copyIndex('redologarray'))]"
+          }
+        }
+      ],
+      "diskarray": "[concat(variables('datadiskarray'), varables('redologarray'))]"
     },
     "resources": [
       {
@@ -296,25 +313,14 @@
             "copy": [
               {
               "name": "dataDisks",
-              "count": "[parameters('numberOfDataDisks')]",
+              "count": "[length(variables('diskarray'))]",
               "input": {
                 "lun": "[copyIndex('dataDisks')]",
                 "createOption": "Attach",
                 "managedDisk":{
-                  "id": "[resourceId('Microsoft.Compute/disks', concat('AttachedDisk', copyIndex('dataDisks')))]"
+                  "id": "[resourceId('Microsoft.Compute/disks', variables('diskarray')[copyIndex('dataDisks')])]"
                 },
                 "caching": "[variables('dataDisksCaching')]"
-               }
-            },
-            {
-              "name": "dataDisks2",
-              "count": "[parameters('numberOfRedoLogsDisks')]",
-              "input": {
-                "lun": "[copyIndex('dataDisks2')]",
-                "createOption": "Attach",
-                "managedDisk":{
-                  "id": "[resourceId('Microsoft.Compute/disks', concat('RedoLog', copyIndex('dataDisks2')))]"
-                }
                }
             }
           ]

@@ -313,12 +313,12 @@
             "copy": [
               {
               "name": "dataDisks",
-              "count": "[length(variables('diskarray'))]",
+              "count": "[length(variables('datadiskarray'))]",
               "input": {
                 "lun": "[copyIndex('dataDisks')]",
                 "createOption": "Attach",
                 "managedDisk":{
-                  "id": "[resourceId('Microsoft.Compute/disks', variables('diskarray')[copyIndex('dataDisks')])]"
+                  "id": "[resourceId('Microsoft.Compute/disks', variables('datadiskarray')[copyIndex('dataDisks')])]"
                 }
                }
             }

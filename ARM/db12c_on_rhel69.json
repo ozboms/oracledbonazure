@@ -173,7 +173,7 @@
           }
         }
       ],
-      "diskarray": "[concat(variables('datadiskarray'), varables('redologarray'))]"
+      "diskarray": "[concat(variables('datadiskarray'), variables('redologarray'))]"
     },
     "resources": [
       {

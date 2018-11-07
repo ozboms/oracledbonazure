@@ -319,8 +319,7 @@
                 "createOption": "Attach",
                 "managedDisk":{
                   "id": "[resourceId('Microsoft.Compute/disks', variables('diskarray')[copyIndex('dataDisks')])]"
-                },
-                "caching": "[variables('dataDisksCaching')]"
+                }
                }
             }
           ]

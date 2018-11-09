@@ -318,7 +318,7 @@
                 "lun": "[copyIndex('dataDisks')]",
                 "createOption": "Attach",
                 "managedDisk":{
-                  "id": "[resourceId('Microsoft.Compute/disks', variables('diskarray').namesofDisks[copyIndex('dataDisks')])]"
+                  "id": "[resourceId('Microsoft.Compute/disks', variables('diskarray')[copyIndex('dataDisks')].namesofDisks)]"
                 }
                }
             }

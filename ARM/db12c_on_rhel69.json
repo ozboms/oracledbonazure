@@ -131,7 +131,7 @@
       },
       "readHeavyDatabase":{
         "type": "string",
-        "defaultValue": "no",
+        "defaultValue": "yes",
         "allowedValues": [
           "yes", "no"
         ],
@@ -317,6 +317,7 @@
               "input": {
                 "lun": "[copyIndex('dataDisks')]",
                 "createOption": "Attach",
+                "caching": "[if(contains(variables('diskarray')[copyIndex('dataDisks')].namesofDisks, 'AttachedDisk'), variables('dataDisksCaching'), 'None')]",
                 "managedDisk":{
                   "id": "[resourceId('Microsoft.Compute/disks', variables('diskarray')[copyIndex('dataDisks')].namesofDisks)]"
                 }

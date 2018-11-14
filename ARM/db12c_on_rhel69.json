@@ -248,7 +248,7 @@
         }
       },
       {
-        "condition": "[equals(variables('zoneexists'), 'no')]",
+        "condition": "[and(equals(variables('zoneexists'), 'no'), parameters('highAvailability'))]",
         "apiVersion": "[variables('apiVersionCompute')]",
         "type": "Microsoft.Compute/availabilitySets",
         "name": "[concat(parameters('vmName'),'-availabilitySet')]",

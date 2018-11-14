@@ -61,7 +61,7 @@
       },
       "highAvailability":{
         "type": "bool",
-        "defaultValue": false,
+        "defaultValue": true,
         "metadata": {
           "description": "Do you want High Availability (HA) for your VMs? (Will only deploy Availibity Zones if VMs are in certain Azure regions)"
         }
@@ -351,7 +351,7 @@
           ]
           },
           "availabilitySet": {
-            "id": "[if(and(parameters('highAvailability'), equals(variables('zoneexists'), 'no')), resourceId('Microsoft.Compute/availabilitySets', concat(parameters('vmName'),'-availabilitySet')), 'null')]"
+            "id": "[if(and(parameters('highAvailability'), equals(variables('zoneexists'), 'no')), resourceId('Microsoft.Compute/availabilitySets', concat(parameters('vmName'),'-availabilitySet')), json('null'))]"
           },
           "networkProfile": {
             "networkInterfaces": [

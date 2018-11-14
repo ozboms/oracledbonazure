@@ -354,7 +354,7 @@
           ]
           },
           "availabilitySet": {
-            "id": "[if(and(parameters('highAvailability'), equals(variables('zoneexists'), 'no')), resourceId('Microsoft.Compute/availabilitySets', concat(parameters('vmName'),'-availabilitySet')), json('null'))]"
+            "id": "[if(and(parameters('highAvailability'), equals(variables('zoneexists'), 'no')), resourceId('Microsoft.Compute/availabilitySets', concat(parameters('vmName'),'-availabilitySet')), resourceId('Microsoft.Compute/availabilitySets', json('null)))]"
           },
           "networkProfile": {
             "networkInterfaces": [

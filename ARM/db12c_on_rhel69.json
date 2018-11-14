@@ -178,7 +178,7 @@
         }
       ],
       "diskarray": "[concat(variables('datadiskarray'), variables('redologarray'))]",
-      "zonearray": "[Central US, East US 2, France Central, North Europe, Southeast Asia, West Europe, West US 2]",
+      "zonearray": ["Central US, East US 2, France Central, North Europe, Southeast Asia, West Europe, West US 2"],
       "zoneexists": "[if(contains(zonearray, resourceGroup().location), 'yes', 'no')]"
     },
     "resources": [

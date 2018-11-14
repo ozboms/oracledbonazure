@@ -59,6 +59,13 @@
           "description":"SKU for Public IP for the VMs"
         }
       },
+      "highAvailability":{
+        "type": "bool",
+        "defaultValue": false,
+        "metadata": {
+          "description": "Do you want High Availability (HA) for your VMs? (Will only deploy Availibity Zones if VMs are in certain Azure regions)"
+        }
+      },
       "osDiskSizeInGB":{
         "type": "int",
         "defaultValue": 1024,
@@ -130,11 +137,8 @@
         }
       },
       "readHeavyDatabase":{
-        "type": "string",
-        "defaultValue": "yes",
-        "allowedValues": [
-          "yes", "no"
-        ],
+        "type": "bool",
+        "defaultValue": true,
         "metadata": {
           "description":"Is your Data Read-only or Read-intensive? ('ReadOnly' caching will be turned on your data disks)"
         }
@@ -154,7 +158,7 @@
       "subnetPrefix": "10.0.0.0/24",
       "publicIPAddressName": "[concat(uniquestring(parameters('vmName')), 'publicip')]",
       "publicIPAddressType": "Static",
-      "dataDisksCaching":"[if(equals(parameters('readHeavyDatabase'), 'yes'), 'ReadOnly', 'None')]",
+      "dataDisksCaching":"[if(parameters('readHeavyDatabase'), 'ReadOnly', 'None')]",
       "vmSize": "Standard_D2s_v3",
       "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), variables('subnetName'))]",
       "copy": [
@@ -173,7 +177,9 @@
           }
         }
       ],
-      "diskarray": "[concat(variables('datadiskarray'), variables('redologarray'))]"
+      "diskarray": "[concat(variables('datadiskarray'), variables('redologarray'))]",
+      "zonearray": "[Central US, East US 2, France Central, North Europe, Southeast Asia, West Europe, West US 2]",
+      "zoneexists": "[if(contains(zonearray, resourceGroup().location), 'yes', 'no')]"
     },
     "resources": [
       {
@@ -235,9 +241,20 @@
         }
       },
       {
+        "condition": "[equals(variables('zoneexists'), 'no')]",
+        "apiVersion": "[variables('apiVersionCompute')]",
+        "type": "Microsoft.Compute/availabilitySets",
+        "name": "[concat(parameters('vmName'),'-availabilitySet')]",
+        "location": "[variables('location')]",
+        "properties": {
+          "platformFaultDomainCount": 2,
+          "platformUpdateDomainCount": 3
+        }
+      },
+      {
         "apiVersion": "[variables('apiVersionCompute')]",
         "type": "Microsoft.Compute/disks",
-        "name": "[concat('AttachedDisk', copyIndex('DiskCopy'))]",
+        "name": "[concat(parameters('vmName'), 'AttachedDisk', copyIndex('DiskCopy'))]",
         "location": "[variables('location')]",
         "sku":{
           "name" : "[parameters('dataDiskSku')]"
@@ -287,6 +304,7 @@
           "['DiskCopy']",
           "['RedoLogCopy']"
         ],
+        "zones": "[if(and(equals(variables('zoneexists'), 'yes'), parameters('highAvailability')), ['1', '2'], json('null'))]",
         "properties": {
           "hardwareProfile": {
             "vmSize": "[variables('vmSize')]"
@@ -324,7 +342,10 @@
                }
             }
           ]
-          },   
+          },
+          "availabilitySet": {
+            "id": "[if(and(parameters(highAvailability), equals(variables('zoneexists'), 'no')), resourceId('Microsoft.Compute/availabilitySets', concat(parameters('vmName'),'-availabilitySet')), json('null'))]"
+          },
           "networkProfile": {
             "networkInterfaces": [
               {

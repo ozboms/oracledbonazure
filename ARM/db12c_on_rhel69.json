@@ -161,6 +161,7 @@
       "dataDisksCaching":"[if(parameters('readHeavyDatabase'), 'ReadOnly', 'None')]",
       "vmSize": "Standard_D2s_v3",
       "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), variables('subnetName'))]",
+      "zoness" :["1", "2"],
       "copy": [
         {
           "name": "datadiskarray",
@@ -310,7 +311,7 @@
           "['DiskCopy']",
           "['RedoLogCopy']"
         ],
-        "zones": "[if(and(equals(variables('zoneexists'), 'yes'), parameters('highAvailability')), ['1', '2'], json('null'))]",
+        "zones": "[if(and(equals(variables('zoneexists'), 'yes'), parameters('highAvailability')), variables('zoness'), json('null'))]",
         "properties": {
           "hardwareProfile": {
             "vmSize": "[variables('vmSize')]"

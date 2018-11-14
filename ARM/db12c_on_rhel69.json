@@ -167,7 +167,7 @@
           "name": "datadiskarray",
           "count": "[parameters('numberOfDataDisks')]",
           "input": {
-            "namesofDisks": "[concat(parameters('vmName'), AttachedDisk', copyIndex('datadiskarray'))]"
+            "namesofDisks": "[concat(parameters('vmName'), 'AttachedDisk', copyIndex('datadiskarray'))]"
           }
         },
         {

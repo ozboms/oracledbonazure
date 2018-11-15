@@ -136,14 +136,14 @@
             "name": "datadiskarray",
             "count": "[parameters('numberOfDataDisks')]",
             "input": {
-              "namesofDisks": "[concat(parameters('vmName-'), 'AttachedDisk', copyIndex('datadiskarray'))]"
+              "namesofDisks": "[concat(parameters('vmName'), 'AttachedDisk', copyIndex('datadiskarray'))]"
             }
           },
           {
             "name": "redologarray",
             "count": "[parameters('numberOfRedoLogsDisks')]",
             "input": {
-              "namesofDisks": "[concat(parameters('vmName-'), 'RedoLog', copyIndex('redologarray'))]"
+              "namesofDisks": "[concat(parameters('vmName'), 'RedoLog', copyIndex('redologarray'))]"
             }
           }
         ],
@@ -213,7 +213,7 @@
         {
           "apiVersion": "[parameters('apiVersionCompute')]",
           "type": "Microsoft.Compute/disks",
-          "name": "[concat(parameters('vmName-'), 'AttachedDisk', copyIndex('DiskCopy'))]",
+          "name": "[concat(parameters('vmName'), 'AttachedDisk', copyIndex('DiskCopy'))]",
           "location": "[variables('location')]",
           "sku":{
             "name" : "[parameters('dataDiskSku')]"
@@ -233,7 +233,7 @@
         {
           "apiVersion": "[parameters('apiVersionCompute')]",
           "type": "Microsoft.Compute/disks",
-          "name": "[concat(parameters('vmName-'), 'RedoLog', copyIndex('RedoLogCopy'))]",
+          "name": "[concat(parameters('vmName'), 'RedoLog', copyIndex('RedoLogCopy'))]",
           "location": "[variables('location')]",
           "sku":{
             "name" : "[parameters('redoLogsDiskSku')]"

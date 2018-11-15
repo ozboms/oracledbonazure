@@ -1,0 +1,317 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "adminUsername": {
+        "type": "string",
+        "metadata": {
+          "description": "User name for the Virtual Machine."
+        }
+      },
+      "adminPassword": {
+        "type": "securestring",
+        "metadata": {
+          "description": "Password for the Virtual Machine."
+        }
+      },
+      "vmName": {
+        "type": "string",
+        "metadata": {
+          "description": "Name for the Virtual Machine."
+        }
+      },
+      "virtualNetworkName": {
+        "type": "string",
+        "defaultValue": "openshiftvnet",
+        "metadata": {
+        "description": "Name of the virtual network"
+        }
+      },
+      "osDiskSizeInGB":{
+        "type": "int",
+        "defaultValue": 1024,
+        "allowedValues": [
+          32, 64, 128, 512, 1024, 2048, 4096
+        ],
+        "metadata": {
+          "description":"Size of the OS Disk(s) to be attached"
+        }
+      },
+      "redoLogsDiskSku":{
+        "type": "string",
+        "defaultValue": "Premium_LRS",
+        "allowedValues": [
+          "Premium_LRS",
+          "Standard_LRS",
+          "StandardSS_LRS"
+        ],
+        "metadata": {
+          "description":"SKU for the Redo Logs Disk(s) to be attached"
+        }
+      },
+      "redoLogsDiskSizeInGB":{
+        "type": "int",
+        "defaultValue": 1024,
+        "allowedValues": [
+          32, 64, 128, 512, 1024, 2048, 4096
+        ],
+        "metadata": {
+          "description":"Size of the Redo Logs Disk(s) to be attached"
+        }
+      },
+      "numberOfRedoLogsDisks":{
+        "type": "int",
+        "defaultValue": 1,
+        "maxValue": 10,
+        "metadata": {
+          "description":"Number of Redo Logs Disks to be attached to the VM"
+        }
+      },
+      "numberOfDataDisks":{
+        "type": "int",
+        "defaultValue": 3,
+        "maxValue": 64,
+        "metadata": {
+          "description":"Number of Data Disks to be attached to the VM"
+        }
+      },
+      "dataDiskSku":{
+        "type": "string",
+        "defaultValue": "Premium_LRS",
+        "allowedValues": [
+          "Premium_LRS",
+          "Standard_LRS",
+          "StandardSS_LRS"
+        ],
+        "metadata": {
+          "description":"SKU for the Data Disks to be attached"
+        }
+      },
+      "dataDiskSizeInGB":{
+        "type": "int",
+        "defaultValue": 1024,
+        "allowedValues": [
+          32, 64, 128, 512, 1024, 2048, 4096
+        ],
+        "metadata": {
+          "description":"Size of the Data Disk(s) to be attached"
+        }
+      },
+      "readHeavyDatabase":{
+        "type": "bool",
+        "defaultValue": true,
+        "metadata": {
+          "description":"Is your Data Read-only or Read-intensive? ('ReadOnly' caching will be turned on your data disks)"
+        }
+      },
+      "apiVersionCompute": {
+        "type": "string",
+        "metadata": {
+          "description": "Compute API Version"
+        }
+      },
+      "apiVersionNetwork": {
+        "type": "string",
+        "metadata": {
+          "description": "Network API Version"
+        }
+      }
+    },
+    "variables": {
+        "location": "[resourceGroup().location]",
+        "resourceGroupName": "[resourceGroup().name]",
+        "imagePublisher": "RedHat",
+        "imageOffer": "RHEL",
+        "imageSku": "6.9",
+        "nicName": "[concat(uniquestring(parameters('vmName')), 'nic')]",
+        "subnetName": "Subnet",
+        "publicIPAddressName": "[concat(uniquestring(parameters('vmName')), 'publicip')]",
+        "publicIPAddressType": "Static",
+        "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), variables('subnetName'))]",
+        "dataDisksCaching":"[if(parameters('readHeavyDatabase'), 'ReadOnly', 'None')]",
+        "vmSize": "Standard_D2s_v3",
+        "zoness" :["1", "2"],
+        "copy": [
+          {
+            "name": "datadiskarray",
+            "count": "[parameters('numberOfDataDisks')]",
+            "input": {
+              "namesofDisks": "[concat(parameters('vmName-'), 'AttachedDisk', copyIndex('datadiskarray'))]"
+            }
+          },
+          {
+            "name": "redologarray",
+            "count": "[parameters('numberOfRedoLogsDisks')]",
+            "input": {
+              "namesofDisks": "[concat(parameters('vmName-'), 'RedoLog', copyIndex('redologarray'))]"
+            }
+          }
+        ],
+        "diskarray": "[concat(variables('datadiskarray'), variables('redologarray'))]",
+        "zonearray": ["Central US", 
+          "East US 2", 
+          "France Central", 
+          "North Europe", 
+          "Southeast Asia", 
+          "West Europe", 
+          "West US 2"],
+        "zoneexists": "[if(contains(variables('zonearray'), variables('location')), 'yes', 'no')]"
+      },
+      "resources": [
+        {
+          "apiVersion": "[parameters('apiVersionNetwork')]",
+          "type": "Microsoft.Network/publicIPAddresses",
+          "name": "[variables('publicIPAddressName')]",
+          "location":"[variables('location')]",
+          "sku":{
+            "name": "Standard" 
+          },
+          "properties":{
+            "publicIPAllocationMethod": "[variables('publicIPAddressType')]" 
+          }
+        },
+        {
+          "apiVersion": "[parameters('apiVersionNetwork')]",
+          "type": "Microsoft.Network/networkInterfaces",
+          "name": "[variables('nicName')]",
+          "location": "[variables('location')]",
+          "dependsOn": [
+            "[concat('Microsoft.Network/publicIPAddresses/', variables('publicIPAddressName'))]",
+            "[concat('Microsoft.Network/virtualNetworks/', parameters('virtualNetworkName'))]"
+          ],
+          "properties": {
+            "ipConfigurations": [
+              {
+                "name": "ipconfig1",
+                "properties": {
+                  "privateIPAllocationMethod": "Dynamic",
+                  "publicIPAddress": {
+                    "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPAddressName'))]"
+                  },
+                  "subnet": {
+                    "id": "[variables('subnetRef')]"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "condition": "[equals(variables('zoneexists'), 'no')]",
+          "apiVersion": "[parameters('apiVersionCompute')]",
+          "type": "Microsoft.Compute/availabilitySets",
+          "name": "[concat(parameters('vmName'),'-availabilitySet')]",
+          "location": "[variables('location')]",
+          "properties": {
+            "platformFaultDomainCount": 2,
+            "platformUpdateDomainCount": 3
+          },
+          "sku": {
+            "name": "Aligned"
+          }
+        },
+        {
+          "apiVersion": "[parameters('apiVersionCompute')]",
+          "type": "Microsoft.Compute/disks",
+          "name": "[concat(parameters('vmName-'), 'AttachedDisk', copyIndex('DiskCopy'))]",
+          "location": "[variables('location')]",
+          "sku":{
+            "name" : "[parameters('dataDiskSku')]"
+          },     
+          "copy": {
+            "name": "DiskCopy",
+            "count": "[parameters('numberOfDataDisks')]"
+          },
+          "properties":{
+            "osType":"Linux",
+            "creationData":{
+              "createOption":"Empty"
+            },
+            "diskSizeGB":"[parameters('dataDiskSizeInGB')]"
+          }
+        },
+        {
+          "apiVersion": "[parameters('apiVersionCompute')]",
+          "type": "Microsoft.Compute/disks",
+          "name": "[concat(parameters('vmName-'), 'RedoLog', copyIndex('RedoLogCopy'))]",
+          "location": "[variables('location')]",
+          "sku":{
+            "name" : "[parameters('redoLogsDiskSku')]"
+          },     
+          "copy": {
+            "name": "RedoLogCopy",
+            "count": "[parameters('numberOfRedoLogsDisks')]"
+          },
+          "properties":{
+            "osType":"Linux",
+            "creationData":{
+              "createOption":"Empty"
+            },
+            "diskSizeGB":"[parameters('redoLogsDiskSizeInGB')]"
+          }
+        },
+        {
+          "apiVersion": "[parameters('apiVersionCompute')]",
+          "type": "Microsoft.Compute/virtualMachines",
+          "name": "[parameters('vmName')]",
+          "location": "[variables('location')]",
+          "tags": {
+            "Tag1": "ManagedRHELVM"
+          },
+          "dependsOn": [
+            "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]",
+            "['DiskCopy']",
+            "['RedoLogCopy']"
+          ],
+          "zones": "[if(equals(variables('zoneexists'), 'yes'), variables('zoness'), json('null'))]",
+          "properties": {
+            "hardwareProfile": {
+              "vmSize": "[variables('vmSize')]"
+            },
+            "osProfile": {
+              "computerName": "[parameters('vmName')]",
+              "adminUsername": "[parameters('adminUsername')]",
+              "adminPassword": "[parameters('adminPassword')]"
+            },
+            "storageProfile": {
+              "imageReference": {
+                "publisher": "[variables('imagePublisher')]",
+                "offer": "[variables('imageOffer')]",
+                "sku": "[variables('imageSku')]",
+                "version": "latest"
+              },
+              "osDisk":{
+                "osType":"Linux",
+                "name":"[concat(parameters('vmName'),'-osdisk')]",
+                "createOption":"FromImage",
+                "caching":"ReadWrite",
+                "diskSizeGB": "[parameters('osDiskSizeInGB')]"
+              },
+              "copy": [
+                {
+                "name": "dataDisks",
+                "count": "[length(variables('diskarray'))]",
+                "input": {
+                  "lun": "[copyIndex('dataDisks')]",
+                  "createOption": "Attach",
+                  "caching": "[if(contains(variables('diskarray')[copyIndex('dataDisks')].namesofDisks, 'AttachedDisk'), variables('dataDisksCaching'), 'None')]",
+                  "managedDisk":{
+                    "id": "[resourceId('Microsoft.Compute/disks', variables('diskarray')[copyIndex('dataDisks')].namesofDisks)]"
+                  }
+                 }
+              }
+            ]
+            },
+            "availabilitySet": {
+              "id": "[resourceId('Microsoft.Compute/availabilitySets', concat(parameters('vmName'),'-availabilitySet'))]"
+            },
+            "networkProfile": {
+              "networkInterfaces": [
+                {
+                  "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]"
+                }
+              ]
+            }
+          }
+        }
+      ]

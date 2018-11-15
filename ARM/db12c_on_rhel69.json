@@ -2,6 +2,14 @@
     "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
+      "_artifactsLocation": {
+        "type": "string",
+        "metadata": {
+          "description": "The base URL where artifacts required by this template are located. When the template is deployed using the accompanying scripts, a private location in the subscription will be used and this value will be automatically generated.",
+          "artifactsBaseUrl": ""
+        },
+        "defaultValue": "https://raw.githubusercontent.com/ozboms/oracledbonazure/ozibranch"
+      },
       "adminUsername": {
         "type": "string",
         "metadata": {
@@ -28,35 +36,11 @@
         "description": "Determines whether or not a new virtual network should be provisioned"
         }
       },
-      "virtualNetworkResourceGroupName": {
-        "type": "string",
-        "defaultValue": "[resourceGroup().name]",
-        "metadata": {
-        "description": "Name of the resource group for the existing virtual network"
-        }
-      },
       "virtualNetworkName": {
         "type": "string",
         "defaultValue": "openshiftvnet",
         "metadata": {
         "description": "Name of the virtual network"
-        }
-      },
-      "createPublicIP":{
-        "type": "bool",
-        "defaultValue": false,
-        "metadata": {
-          "description":"Create a Public IP for the VMs? (true/false)"
-        }
-      },
-      "publicIPSKU":{
-        "type": "string",
-        "defaultValue": "Standard",
-        "allowedValues": [
-          "Standard", "Basic"
-        ],
-        "metadata": {
-          "description":"SKU for Public IP for the VMs"
         }
       },
       "highAvailability":{
@@ -149,6 +133,7 @@
       "resourceGroupName": "[resourceGroup().name]",
       "apiVersionNetwork": "2017-10-01",
       "apiVersionCompute": "2017-03-30",
+      "apiVersionLinkTemplate": "2015-01-01",
       "imagePublisher": "RedHat",
       "imageOffer": "RHEL",
       "imageSku": "6.9",
@@ -161,6 +146,7 @@
       "dataDisksCaching":"[if(parameters('readHeavyDatabase'), 'ReadOnly', 'None')]",
       "vmSize": "Standard_D2s_v3",
       "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), variables('subnetName'))]",
+      "VmDeploymentTemplateUrl": "[concat(parameters('_artifactsLocation'), '/nested/vmdeployment-HA.json')]",
       "zoness" :["1", "2"],
       "copy": [
         {
@@ -191,18 +177,6 @@
     "resources": [
       {
         "apiVersion": "[variables('apiVersionNetwork')]",
-        "type": "Microsoft.Network/publicIPAddresses",
-        "name": "[variables('publicIPAddressName')]",
-        "location":"[variables('location')]",
-        "sku":{
-          "name": "Standard" 
-        },
-        "properties":{
-          "publicIPAllocationMethod": "[variables('publicIPAddressType')]" 
-        }
-      },
-      {
-        "apiVersion": "[variables('apiVersionNetwork')]",
         "condition": "[equals(parameters('virtualNetworkNewOrExisting'), 'new')]",
 			  "type": "Microsoft.Network/virtualNetworks",
 			  "name": "[parameters('virtualNetworkName')]",
@@ -222,146 +196,58 @@
         }
       },
       {
-        "apiVersion": "[variables('apiVersionNetwork')]",
-        "type": "Microsoft.Network/networkInterfaces",
-        "name": "[variables('nicName')]",
-        "location": "[variables('location')]",
-        "dependsOn": [
-          "[concat('Microsoft.Network/publicIPAddresses/', variables('publicIPAddressName'))]",
-          "[concat('Microsoft.Network/virtualNetworks/', parameters('virtualNetworkName'))]"
-        ],
+        "name": "vmHADeployment",
+        "type": "Microsoft.Resources/deployments",
+        "apiVersion": "[variables('apiVersionLinkTemplate')]",
         "properties": {
-          "ipConfigurations": [
-            {
-              "name": "ipconfig1",
-              "properties": {
-                "privateIPAllocationMethod": "Dynamic",
-                "publicIPAddress": {
-                  "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPAddressName'))]"
-                },
-                "subnet": {
-                  "id": "[variables('subnetRef')]"
-                }
-              }
-            }
-          ]
-        }
-      },
-      {
-        "condition": "[and(equals(variables('zoneexists'), 'no'), parameters('highAvailability'))]",
-        "apiVersion": "[variables('apiVersionCompute')]",
-        "type": "Microsoft.Compute/availabilitySets",
-        "name": "[concat(parameters('vmName'),'-availabilitySet')]",
-        "location": "[variables('location')]",
-        "properties": {
-          "platformFaultDomainCount": 2,
-          "platformUpdateDomainCount": 3
-        },
-        "sku": {
-          "name": "Aligned"
-        }
-      },
-      {
-        "apiVersion": "[variables('apiVersionCompute')]",
-        "type": "Microsoft.Compute/disks",
-        "name": "[concat(parameters('vmName'), 'AttachedDisk', copyIndex('DiskCopy'))]",
-        "location": "[variables('location')]",
-        "sku":{
-          "name" : "[parameters('dataDiskSku')]"
-        },     
-        "copy": {
-          "name": "DiskCopy",
-          "count": "[parameters('numberOfDataDisks')]"
-        },
-        "properties":{
-          "osType":"Linux",
-          "creationData":{
-            "createOption":"Empty"
+          "mode": "Incremental",
+          "templateLink": {
+            "uri": "[variables('VmDeploymentTemplateUrl')]",
+            "contentVersion": "1.0.0.0"
           },
-          "diskSizeGB":"[parameters('dataDiskSizeInGB')]"
-        }
-      },
-      {
-        "apiVersion": "[variables('apiVersionCompute')]",
-        "type": "Microsoft.Compute/disks",
-        "name": "[concat(parameters('vmName'), 'RedoLog', copyIndex('RedoLogCopy'))]",
-        "location": "[variables('location')]",
-        "sku":{
-          "name" : "[parameters('redoLogsDiskSku')]"
-        },     
-        "copy": {
-          "name": "RedoLogCopy",
-          "count": "[parameters('numberOfRedoLogsDisks')]"
-        },
-        "properties":{
-          "osType":"Linux",
-          "creationData":{
-            "createOption":"Empty"
-          },
-          "diskSizeGB":"[parameters('redoLogsDiskSizeInGB')]"
-        }
-      },
-      {
-        "apiVersion": "[variables('apiVersionCompute')]",
-        "type": "Microsoft.Compute/virtualMachines",
-        "name": "[parameters('vmName')]",
-        "location": "[variables('location')]",
-        "tags": {
-          "Tag1": "ManagedRHELVM"
-        },
-        "dependsOn": [
-          "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]",
-          "['DiskCopy']",
-          "['RedoLogCopy']"
-        ],
-        "zones": "[if(and(equals(variables('zoneexists'), 'yes'), parameters('highAvailability')), variables('zoness'), json('null'))]",
-        "properties": {
-          "hardwareProfile": {
-            "vmSize": "[variables('vmSize')]"
-          },
-          "osProfile": {
-            "computerName": "[parameters('vmName')]",
-            "adminUsername": "[parameters('adminUsername')]",
-            "adminPassword": "[parameters('adminPassword')]"
-          },
-          "storageProfile": {
-            "imageReference": {
-              "publisher": "[variables('imagePublisher')]",
-              "offer": "[variables('imageOffer')]",
-              "sku": "[variables('imageSku')]",
-              "version": "latest"
+          "parameters": {
+            "adminUsername": {
+              "value": "[parameters('adminUsername')]"
             },
-            "osDisk":{
-              "osType":"Linux",
-              "name":"[concat(parameters('vmName'),'-osdisk')]",
-              "createOption":"FromImage",
-              "caching":"ReadWrite",
-              "diskSizeGB": "[parameters('osDiskSizeInGB')]"
+            "adminPassword": {
+              "value": "[parameters('adminPassword')]"
             },
-            "copy": [
-              {
-              "name": "dataDisks",
-              "count": "[length(variables('diskarray'))]",
-              "input": {
-                "lun": "[copyIndex('dataDisks')]",
-                "createOption": "Attach",
-                "caching": "[if(contains(variables('diskarray')[copyIndex('dataDisks')].namesofDisks, 'AttachedDisk'), variables('dataDisksCaching'), 'None')]",
-                "managedDisk":{
-                  "id": "[resourceId('Microsoft.Compute/disks', variables('diskarray')[copyIndex('dataDisks')].namesofDisks)]"
-                }
-               }
+            "vmName": {
+              "value": "[parameters('vmName')]"
+            },
+            "virtualNetworkName": {
+              "value": "[parameters('virtualNetworkName')]"
+            },
+            "osDiskSizeInGB":{
+              "value": "[parameters('osDiskSizeInGB')]"
+            },
+            "redoLogsDiskSku":{
+              "value": "[parameters('redoLogsDiskSku')]"
+            },
+            "redoLogsDiskSizeInGB":{
+              "value": "[parameters('redoLogsDiskSizeInGB')]"
+            },
+            "numberOfRedoLogsDisks":{
+              "value": "[parameters('numberOfRedoLogsDisks')]"
+            },
+            "numberOfDataDisks":{
+              "value": "[parameters('numberOfDataDisks')]"
+            },
+            "dataDiskSku":{
+              "value": "[parameters('dataDiskSku')]"
+            },
+            "dataDiskSizeInGB":{
+              "value": "[parameters('dataDiskSizeInGB')]"
+            },
+            "readHeavyDatabase":{
+              "value": "[parameters('readHeavyDatabase')]"
+            },
+            "apiVersionCompute":{
+              "value": "[variables('apiVersionCompute')]"
+            },
+            "apiVersionNetwork":{
+              "value": "[variables('apiVersionNetwork')]"
             }
-          ]
-          },
-          "availabilitySet": {
-            "id": "[if(and(parameters('highAvailability'), equals(variables('zoneexists'), 'no')), resourceId('Microsoft.Compute/availabilitySets', concat(parameters('vmName'),'-availabilitySet')), resourceId('Microsoft.Compute/availabilitySets', json('null')))]"
-          },
-          "networkProfile": {
-            "networkInterfaces": [
-              {
-                "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]"
-              }
-            ]
           }
         }
       }

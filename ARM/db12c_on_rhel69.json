@@ -147,6 +147,7 @@
       "vmSize": "Standard_D2s_v3",
       "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), variables('subnetName'))]",
       "VmDeploymentTemplateUrl": "[concat(parameters('_artifactsLocation'), '/nested/vmdeployment-HA.json')]",
+      "nonHAdeploymentUrl": "[concat(parameters('_artifactsLocation'), '/nested/vmdeployment-nonHA.json')]",
       "zoness" :["1", "2"],
       "copy": [
         {
@@ -196,6 +197,7 @@
         }
       },
       {
+        "condition": "[parameters('highAvailability')]",
         "name": "vmHADeployment",
         "type": "Microsoft.Resources/deployments",
         "apiVersion": "[variables('apiVersionLinkTemplate')]",
@@ -203,6 +205,63 @@
           "mode": "Incremental",
           "templateLink": {
             "uri": "[variables('VmDeploymentTemplateUrl')]",
+            "contentVersion": "1.0.0.0"
+          },
+          "parameters": {
+            "adminUsername": {
+              "value": "[parameters('adminUsername')]"
+            },
+            "adminPassword": {
+              "value": "[parameters('adminPassword')]"
+            },
+            "vmName": {
+              "value": "[parameters('vmName')]"
+            },
+            "virtualNetworkName": {
+              "value": "[parameters('virtualNetworkName')]"
+            },
+            "osDiskSizeInGB":{
+              "value": "[parameters('osDiskSizeInGB')]"
+            },
+            "redoLogsDiskSku":{
+              "value": "[parameters('redoLogsDiskSku')]"
+            },
+            "redoLogsDiskSizeInGB":{
+              "value": "[parameters('redoLogsDiskSizeInGB')]"
+            },
+            "numberOfRedoLogsDisks":{
+              "value": "[parameters('numberOfRedoLogsDisks')]"
+            },
+            "numberOfDataDisks":{
+              "value": "[parameters('numberOfDataDisks')]"
+            },
+            "dataDiskSku":{
+              "value": "[parameters('dataDiskSku')]"
+            },
+            "dataDiskSizeInGB":{
+              "value": "[parameters('dataDiskSizeInGB')]"
+            },
+            "readHeavyDatabase":{
+              "value": "[parameters('readHeavyDatabase')]"
+            },
+            "apiVersionCompute":{
+              "value": "[variables('apiVersionCompute')]"
+            },
+            "apiVersionNetwork":{
+              "value": "[variables('apiVersionNetwork')]"
+            }
+          }
+        }
+      },
+      {
+        "condition": "[not(parameters('highAvailability'))]",
+        "name": "nonHAvmDeployment",
+        "type": "Microsoft.Resources/deployments",
+        "apiVersion": "[variables('apiVersionLinkTemplate')]",
+        "properties": {
+          "mode": "Incremental",
+          "templateLink": {
+            "uri": "[variables('nonHAdeploymentUrl')]",
             "contentVersion": "1.0.0.0"
           },
           "parameters": {
